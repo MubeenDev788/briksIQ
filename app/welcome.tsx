@@ -4,12 +4,31 @@ import { useRouter } from 'expo-router';
 import * as Animatable from 'react-native-animatable';
 import { Building2 } from 'lucide-react-native';
 import { AnimatedButton } from '@/components/AnimatedButton';
+import { useAuth } from '@/contexts/AuthContext';
 import { theme } from '@/utils/theme';
 
 const { width, height } = Dimensions.get('window');
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
+    // Redirect to tabs if user is already authenticated
+    if (!loading && user) {
+      router.replace('/(tabs)');
+    }
+  }, [user, loading]);
+
+  // Show loading while checking auth state
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <Building2 size={60} color={theme.colors.primary} />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -77,6 +96,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: theme.colors.text,
+    fontSize: theme.fontSize.lg,
+    marginTop: theme.spacing.md,
   },
   content: {
     flex: 1,

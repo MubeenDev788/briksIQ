@@ -1,33 +1,53 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Animatable from 'react-native-animatable';
-import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react-native';
+import { Mail, Lock, User, Eye, EyeOff, Loader } from 'lucide-react-native';
 import { AnimatedButton } from '@/components/AnimatedButton';
 import { GlassCard } from '@/components/GlassCard';
+import { useAuth } from '@/contexts/AuthContext';
 import { theme } from '@/utils/theme';
 
 const { width } = Dimensions.get('window');
 
 export default function AuthScreen() {
   const router = useRouter();
+  const { signIn, signUp } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [userRole, setUserRole] = useState<'buyer' | 'agent'>('buyer');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
   });
 
-  const handleAuth = () => {
-    // Mock authentication - in real app, validate credentials
-    console.log('Auth attempt:', { isLogin, userRole, formData });
+  const handleAuth = async () => {
+    if (!formData.email || !formData.password) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    if (!isLogin && !formData.name) {
+      Alert.alert('Error', 'Please enter your full name');
+      return;
+    }
+
+    setLoading(true);
     
-    // Store user role for role-based UI
-    global.userRole = userRole;
-    
-    router.replace('/(tabs)');
+    try {
+      if (isLogin) {
+        await signIn(formData.email, formData.password);
+      } else {
+        await signUp(formData.email, formData.password, formData.name, userRole);
+      }
+      router.replace('/(tabs)');
+    } catch (error: any) {
+      Alert.alert('Authentication Error', error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const InputField = ({ 
@@ -49,11 +69,13 @@ export default function AuthScreen() {
         secureTextEntry={secureTextEntry}
         keyboardType={keyboardType}
         autoCapitalize="none"
+        editable={!loading}
       />
       {placeholder.toLowerCase().includes('password') && (
         <TouchableOpacity 
           onPress={() => setShowPassword(!showPassword)}
           style={styles.eyeIcon}
+          disabled={loading}
         >
           {showPassword ? (
             <EyeOff size={20} color={theme.colors.textSecondary} />
@@ -85,42 +107,46 @@ export default function AuthScreen() {
           </Text>
         </Animatable.View>
 
-        {/* Role Toggle */}
-        <Animatable.View animation="fadeInUp" delay={500}>
-          <GlassCard style={styles.roleToggle}>
-            <Text style={styles.roleLabel}>I am a:</Text>
-            <View style={styles.toggleContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.toggleButton,
-                  userRole === 'buyer' && styles.activeToggle
-                ]}
-                onPress={() => setUserRole('buyer')}
-              >
-                <Text style={[
-                  styles.toggleText,
-                  userRole === 'buyer' && styles.activeToggleText
-                ]}>
-                  Buyer
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.toggleButton,
-                  userRole === 'agent' && styles.activeToggle
-                ]}
-                onPress={() => setUserRole('agent')}
-              >
-                <Text style={[
-                  styles.toggleText,
-                  userRole === 'agent' && styles.activeToggleText
-                ]}>
-                  Agent
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </GlassCard>
-        </Animatable.View>
+        {/* Role Toggle - Only show for signup */}
+        {!isLogin && (
+          <Animatable.View animation="fadeInUp" delay={500}>
+            <GlassCard style={styles.roleToggle}>
+              <Text style={styles.roleLabel}>I am a:</Text>
+              <View style={styles.toggleContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.toggleButton,
+                    userRole === 'buyer' && styles.activeToggle
+                  ]}
+                  onPress={() => setUserRole('buyer')}
+                  disabled={loading}
+                >
+                  <Text style={[
+                    styles.toggleText,
+                    userRole === 'buyer' && styles.activeToggleText
+                  ]}>
+                    Buyer
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.toggleButton,
+                    userRole === 'agent' && styles.activeToggle
+                  ]}
+                  onPress={() => setUserRole('agent')}
+                  disabled={loading}
+                >
+                  <Text style={[
+                    styles.toggleText,
+                    userRole === 'agent' && styles.activeToggleText
+                  ]}>
+                    Agent
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </GlassCard>
+          </Animatable.View>
+        )}
 
         {/* Form */}
         <Animatable.View animation="fadeInUp" delay={700}>
@@ -151,17 +177,29 @@ export default function AuthScreen() {
             />
 
             {isLogin && (
-              <TouchableOpacity style={styles.forgotPassword}>
+              <TouchableOpacity style={styles.forgotPassword} disabled={loading}>
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
             )}
 
-            <AnimatedButton
-              title={isLogin ? 'Sign In' : 'Create Account'}
+            <TouchableOpacity
+              style={[styles.authButton, loading && styles.authButtonDisabled]}
               onPress={handleAuth}
-              size="large"
-              style={styles.authButton}
-            />
+              disabled={loading}
+            >
+              {loading ? (
+                <View style={styles.loadingContainer}>
+                  <Loader size={20} color={theme.colors.text} />
+                  <Text style={styles.authButtonText}>
+                    {isLogin ? 'Signing In...' : 'Creating Account...'}
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.authButtonText}>
+                  {isLogin ? 'Sign In' : 'Create Account'}
+                </Text>
+              )}
+            </TouchableOpacity>
           </GlassCard>
         </Animatable.View>
 
@@ -170,6 +208,7 @@ export default function AuthScreen() {
           <TouchableOpacity 
             style={styles.switchMode}
             onPress={() => setIsLogin(!isLogin)}
+            disabled={loading}
           >
             <Text style={styles.switchModeText}>
               {isLogin ? "Don't have an account? " : "Already have an account? "}
@@ -276,7 +315,25 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
   },
   authButton: {
-    width: '100%',
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.lg,
+    paddingVertical: theme.spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 50,
+  },
+  authButtonDisabled: {
+    opacity: 0.7,
+  },
+  authButtonText: {
+    color: theme.colors.text,
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.semibold,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
   },
   switchMode: {
     alignItems: 'center',

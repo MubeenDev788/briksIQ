@@ -4,13 +4,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { User, Settings, Bell, Shield, CircleHelp as HelpCircle, LogOut, ChevronRight, Building2, Star, Heart } from 'lucide-react-native';
 import { GlassCard } from '@/components/GlassCard';
+import { useAuth } from '@/contexts/AuthContext';
 import { theme } from '@/utils/theme';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { userProfile, logout } = useAuth();
 
   const userStats = [
-    { label: 'Listed', value: '12', icon: Building2 },
+    { label: 'Listed', value: userProfile?.role === 'agent' ? '12' : '0', icon: Building2 },
     { label: 'Reviews', value: '4.8', icon: Star },
     { label: 'Favorites', value: '23', icon: Heart },
   ];
@@ -53,7 +55,14 @@ export default function ProfileScreen() {
         { 
           text: 'Logout', 
           style: 'destructive',
-          onPress: () => router.replace('/welcome')
+          onPress: async () => {
+            try {
+              await logout();
+              router.replace('/welcome');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to logout');
+            }
+          }
         }
       ]
     );
@@ -78,8 +87,10 @@ export default function ProfileScreen() {
             </View>
             
             <View style={styles.profileInfo}>
-              <Text style={styles.userName}>Sarah Ahmed</Text>
-              <Text style={styles.userRole}>Premium Agent</Text>
+              <Text style={styles.userName}>{userProfile?.displayName || 'User'}</Text>
+              <Text style={styles.userRole}>
+                {userProfile?.role === 'agent' ? 'Premium Agent' : 'Property Buyer'}
+              </Text>
               <Text style={styles.userLocation}>Lahore, Pakistan</Text>
             </View>
           </View>
@@ -101,7 +112,9 @@ export default function ProfileScreen() {
         <View style={styles.quickActions}>
           <TouchableOpacity style={styles.quickActionButton}>
             <Building2 size={24} color={theme.colors.primary} />
-            <Text style={styles.quickActionText}>My Listings</Text>
+            <Text style={styles.quickActionText}>
+              {userProfile?.role === 'agent' ? 'My Listings' : 'Saved Searches'}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.quickActionButton}>
             <Heart size={24} color={theme.colors.error} />

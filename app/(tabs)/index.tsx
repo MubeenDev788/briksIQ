@@ -8,6 +8,7 @@ import { SearchBar } from '@/components/SearchBar';
 import { PropertyCard } from '@/components/PropertyCard';
 import { GlassCard } from '@/components/GlassCard';
 import { PropertyListShimmer } from '@/components/LoadingShimmer';
+import { useAuth } from '@/contexts/AuthContext';
 import { mockProperties } from '@/data/mockData';
 import { theme } from '@/utils/theme';
 
@@ -15,12 +16,10 @@ const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { userProfile, user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [favorites, setFavorites] = useState<string[]>([]);
-  
-  // Get user role (in real app, this would come from auth context)
-  const userRole = (global as any).userRole || 'buyer';
 
   const featuredProperties = mockProperties.filter(p => p.featured);
   const quickFilters = [
@@ -66,13 +65,13 @@ export default function HomeScreen() {
   );
 
   // Agent Dashboard Content
-  if (userRole === 'agent') {
+  if (userProfile?.role === 'agent') {
     return (
       <SafeAreaView style={styles.container}>
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Agent Header */}
           <Animatable.View animation="fadeInDown" style={styles.header}>
-            <Text style={styles.greeting}>Welcome back, Agent!</Text>
+            <Text style={styles.greeting}>Welcome back, {userProfile.displayName}!</Text>
             <Text style={styles.welcomeText}>Manage your listings</Text>
           </Animatable.View>
 
@@ -175,7 +174,7 @@ export default function HomeScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <Animatable.View animation="fadeInDown" style={styles.header}>
-          <Text style={styles.greeting}>Good Morning!</Text>
+          <Text style={styles.greeting}>Good Morning, {userProfile?.displayName || 'User'}!</Text>
           <Text style={styles.welcomeText}>Find your dream home</Text>
         </Animatable.View>
 
